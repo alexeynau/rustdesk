@@ -1384,12 +1384,26 @@ class _AccountState extends State<_Account> {
           physics: DraggableNeverScrollableScrollPhysics(),
           controller: scrollController,
           children: [
-            _Card(title: 'Account', children: [accountAction(), useInfo()]),
+            _Card(
+              title: 'Account',
+              children: [
+                Row(
+                  children: [
+                    accountActionSignUp(),
+                    SizedBox(
+                      width: 8,
+                    ),
+                    accountActionLogin(),
+                  ],
+                ),
+                useInfo(),
+              ],
+            ),
           ],
         ).marginOnly(bottom: _kListViewBottomMargin));
   }
 
-  Widget accountAction() {
+  Widget accountActionLogin() {
     return Obx(() => _Button(
         gFFI.userModel.userName.value.isEmpty ? 'Login' : 'Logout',
         () => {
@@ -1397,6 +1411,13 @@ class _AccountState extends State<_Account> {
                   ? loginDialog()
                   : logOutConfirmDialog()
             }));
+  }
+
+  Widget accountActionSignUp() {
+    return _Button(
+      translate('Sign up'),
+      () => {signUpDialog()},
+    );
   }
 
   Widget useInfo() {

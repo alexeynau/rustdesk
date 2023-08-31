@@ -146,6 +146,55 @@ class MyLoginRequest {
   }
 }
 
+class SignUpRequest {
+  String? name;
+  String? password;
+  String? email;
+  String? phone_num;
+  String? phone_num_code;
+  String? id;
+  String? uuid;
+  bool? autoLogin;
+  String? type;
+  String? verificationCode;
+
+  SignUpRequest(
+      {this.name,
+      this.password,
+      this.email,
+      this.phone_num,
+      this.phone_num_code,
+      this.id,
+      this.uuid,
+      this.autoLogin,
+      this.type,
+      this.verificationCode});
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = <String, dynamic>{};
+    if (name != null) data['name'] = name;
+    if (password != null) data['password'] = password;
+    if (email != null) data['email'] = email;
+    if (phone_num != null) data['phone_number'] = phone_num;
+    if (phone_num_code != null) data['phone_number_code'] = phone_num_code;
+    return data;
+  }
+}
+
+class SignUpResponse {
+  String? access_token;
+  String? type;
+  String? refresh_token;
+  UserPayload? user;
+
+  SignUpResponse({this.access_token, this.type, this.user});
+
+  SignUpResponse.fromJson(Map<String, dynamic> json) {
+    access_token = json['access_token'];
+    type = HttpType.kAuthResTypeToken;
+  }
+}
+
 class LoginResponse {
   String? access_token;
   String? type;

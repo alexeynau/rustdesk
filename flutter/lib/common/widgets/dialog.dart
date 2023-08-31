@@ -312,9 +312,11 @@ class DialogTextField extends StatelessWidget {
   final Widget? suffixIcon;
   final TextEditingController controller;
   final FocusNode? focusNode;
+  final bool onlyNumbers;
 
   static const kUsernameTitle = 'Username';
   static const kUsernameIcon = Icon(Icons.account_circle_outlined);
+  static const kPasswordConfirm = 'Confirm password';
   static const kEmailTitle = 'Email';
   static const kEmailIcon = Icon(Icons.email_outlined);
   static const kPhoneNumberTitle = 'Phone Number';
@@ -322,18 +324,19 @@ class DialogTextField extends StatelessWidget {
   static const kPasswordTitle = 'Password';
   static const kPasswordIcon = Icon(Icons.lock_outline);
 
-  DialogTextField(
-      {Key? key,
-      this.focusNode,
-      this.obscureText = false,
-      this.errorText,
-      this.helperText,
-      this.prefixIcon,
-      this.suffixIcon,
-      this.hintText,
-      required this.title,
-      required this.controller})
-      : super(key: key);
+  DialogTextField({
+    Key? key,
+    this.focusNode,
+    this.obscureText = false,
+    this.errorText,
+    this.helperText,
+    this.prefixIcon,
+    this.suffixIcon,
+    this.hintText,
+    required this.title,
+    required this.controller,
+    this.onlyNumbers = false,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -355,10 +358,63 @@ class DialogTextField extends StatelessWidget {
             focusNode: focusNode,
             autofocus: true,
             obscureText: obscureText,
+            keyboardType:
+                onlyNumbers ? TextInputType.number : TextInputType.none,
+            inputFormatters: onlyNumbers
+                ? <TextInputFormatter>[
+                    FilteringTextInputFormatter.digitsOnly
+                  ] // Only numbers can be entered
+                : <TextInputFormatter>[],
           ),
         ),
       ],
     ).paddingSymmetric(vertical: 4.0);
+  }
+}
+
+class PhoneNumberWidget extends StatelessWidget {
+  PhoneNumberWidget({
+    Key? key,
+    required this.codeController,
+    required this.phoneNumberController,
+    this.codeMsg,
+    this.phoneNumberMsg,
+  }) : super(key: key);
+
+  final TextEditingController codeController;
+  final TextEditingController phoneNumberController;
+  final String? codeMsg;
+  final String? phoneNumberMsg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 2,
+          child: DialogTextField(
+            title: 'Code',
+            controller: codeController,
+            prefixIcon: Icon(Icons.add),
+            errorText: codeMsg,
+            onlyNumbers: true,
+          ),
+        ),
+        SizedBox(
+          width: 8,
+        ),
+        Expanded(
+          flex: 5,
+          child: DialogTextField(
+            title: DialogTextField.kPhoneNumberTitle,
+            controller: phoneNumberController,
+            prefixIcon: DialogTextField.kPhoneNumberIcon,
+            errorText: phoneNumberMsg,
+            onlyNumbers: true,
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -405,7 +461,7 @@ class _PasswordWidgetState extends State<PasswordWidget> {
   @override
   Widget build(BuildContext context) {
     return DialogTextField(
-      title: translate(DialogTextField.kPasswordTitle),
+      title: translate(widget.hintText ?? DialogTextField.kPasswordTitle),
       hintText: translate(widget.hintText ?? 'Enter your password'),
       controller: widget.controller,
       prefixIcon: DialogTextField.kPasswordIcon,

@@ -362,28 +362,11 @@ class LoginWidgetUserPass extends StatelessWidget {
                 focusNode: userFocusNode,
                 prefixIcon: DialogTextField.kEmailIcon,
                 errorText: emailMsg),
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: DialogTextField(
-                      title: 'Code',
-                      controller: phoneNumberCode,
-                      prefixIcon: Icon(Icons.add),
-                      errorText: phoneNumberCodeMsg),
-                ),
-                SizedBox(
-                  width: 8,
-                ),
-                Expanded(
-                  flex: 5,
-                  child: DialogTextField(
-                      title: DialogTextField.kPhoneNumberTitle,
-                      controller: phoneNumber,
-                      prefixIcon: DialogTextField.kPhoneNumberIcon,
-                      errorText: phoneNumberMsg),
-                ),
-              ],
+            PhoneNumberWidget(
+              phoneNumberController: phoneNumber,
+              phoneNumberMsg: phoneNumberMsg,
+              codeController: phoneNumberCode,
+              codeMsg: phoneNumberCodeMsg,
             ),
             PasswordWidget(
               controller: pass,
@@ -416,6 +399,32 @@ class LoginWidgetUserPass extends StatelessWidget {
             ])),
           ],
         ));
+  }
+
+  Row PhoneWidget() {
+    return Row(
+      children: [
+        Expanded(
+          flex: 2,
+          child: DialogTextField(
+              title: 'Code',
+              controller: phoneNumberCode,
+              prefixIcon: Icon(Icons.add),
+              errorText: phoneNumberCodeMsg),
+        ),
+        SizedBox(
+          width: 8,
+        ),
+        Expanded(
+          flex: 5,
+          child: DialogTextField(
+              title: DialogTextField.kPhoneNumberTitle,
+              controller: phoneNumber,
+              prefixIcon: DialogTextField.kPhoneNumberIcon,
+              errorText: phoneNumberMsg),
+        ),
+      ],
+    );
   }
 }
 
@@ -639,6 +648,246 @@ Future<bool?> loginDialog() async {
   return res;
 }
 
+Future<bool?> signUpDialog() async {
+  var name = TextEditingController();
+  var password = TextEditingController();
+  var email = TextEditingController();
+  var confirmPassword = TextEditingController();
+  var phoneNumber = TextEditingController();
+  var phoneNumberCode = TextEditingController();
+
+  final userFocusNode = FocusNode()..requestFocus();
+  Timer(Duration(milliseconds: 100), () => userFocusNode..requestFocus());
+
+  String? usernameMsg;
+  String? passwordMsg;
+  String? phoneNumberMsg;
+  String? phoneNumberCodeMsg;
+  String? emailMsg;
+
+  var isInProgress = false;
+  final RxString curOP = ''.obs;
+
+  // final signUpOptions = [].obs;
+  // Future.delayed(Duration.zero, () async {
+  //   signUpOptions.value = await UserModel.queryOidcLoginOptions();
+  // });
+
+  final res = await gFFI.dialogManager.show<bool>((setState, close, context) {
+    // TODO: make it shorter
+    name.addListener(() {
+      if (usernameMsg != null) {
+        setState(() => usernameMsg = null);
+      }
+    });
+
+    password.addListener(() {
+      if (passwordMsg != null) {
+        setState(() => passwordMsg = null);
+      }
+    });
+    phoneNumber.addListener(() {
+      if (phoneNumberMsg != null) {
+        setState(() => phoneNumberMsg = null);
+      }
+    });
+    phoneNumberCode.addListener(() {
+      if (phoneNumberCodeMsg != null) {
+        setState(() => phoneNumberCodeMsg = null);
+      }
+    });
+    email.addListener(() {
+      if (emailMsg != null) {
+        setState(() => emailMsg = null);
+      }
+    });
+
+    onDialogCancel() {
+      isInProgress = false;
+      close(false);
+    }
+
+    onSignUp() async {
+      // validate
+      if (name.text.isEmpty) {
+        setState(() => usernameMsg = translate('Username missed'));
+        return;
+      }
+      if (password.text.isEmpty) {
+        setState(() => passwordMsg = translate('Password missed'));
+        return;
+      }
+      if (phoneNumberCode.text.isEmpty) {
+        setState(
+            () => phoneNumberCodeMsg = translate('Phone number code missed'));
+        return;
+      }
+      if (phoneNumber.text.isEmpty) {
+        setState(() => phoneNumberMsg = translate('Phone number missed'));
+        return;
+      }
+      if (email.text.isEmpty) {
+        setState(() => emailMsg = translate('Email missed'));
+        return;
+      }
+      if (confirmPassword.text != password.text) {
+        setState(() => passwordMsg = translate('Passwords are different'));
+        return;
+      }
+      curOP.value = 'rustdesk';
+      setState(() => isInProgress = true);
+      try {
+        final resp = await gFFI.userModel.signUp(SignUpRequest(
+          name: name.text,
+          password: password.text,
+          email: email.text,
+          phone_num: phoneNumber.text,
+          phone_num_code: phoneNumberCode.text,
+        ));
+
+        switch (resp.type) {
+          case HttpType.kAuthResTypeToken:
+            if (resp.access_token != null) {
+              await bind.mainSetLocalOption(
+                  key: 'access_token', value: resp.access_token!);
+              await bind.mainSetLocalOption(
+                  key: 'user_info', value: jsonEncode(resp.user ?? {}));
+              close(true);
+              return;
+            }
+            break;
+          case HttpType.kAuthResTypeEmailCheck:
+            if (isMobile) {
+              close(true);
+              verificationCodeDialog(resp.user);
+            } else {
+              setState(() => isInProgress = false);
+              final res = await verificationCodeDialog(resp.user);
+              if (res == true) {
+                close(true);
+                return;
+              }
+            }
+            break;
+          default:
+            passwordMsg = "Failed, bad response from server";
+            break;
+        }
+      } on RequestException catch (err) {
+        passwordMsg = translate(err.cause);
+      } catch (err) {
+        passwordMsg = "Unknown Error: $err";
+      }
+      curOP.value = '';
+      setState(() => isInProgress = false);
+    }
+
+/*
+    thirdAuthWidget() => Obx(() {
+          return Offstage(
+            offstage: signUpOptions.isEmpty,
+            child: Column(
+              children: [
+                const SizedBox(
+                  height: 8.0,
+                ),
+                Center(
+                    child: Text(
+                  translate('or'),
+                  style: TextStyle(fontSize: 16),
+                )),
+                const SizedBox(
+                  height: 8.0,
+                ),
+                LoginWidgetOP(
+                  ops: loginOptions
+                      .map((e) => ConfigOP(op: e['name'], icon: e['icon']))
+                      .toList(),
+                  curOP: curOP,
+                  cbLogin: (Map<String, dynamic> authBody) {
+                    try {
+                      // access_token is already stored in the rust side.
+                      gFFI.userModel.getLoginResponseFromAuthBody(authBody);
+                    } catch (e) {
+                      debugPrint(
+                          'Failed to parse oidc login body: "$authBody"');
+                    }
+                    close(true);
+                  },
+                ),
+              ],
+            ),
+          );
+        });
+*/
+    final title = Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          translate('Sign Up'),
+        ).marginOnly(top: MyTheme.dialogPadding),
+        InkWell(
+          child: Icon(
+            Icons.close,
+            size: 25,
+            // No need to handle the branch of null.
+            // Because we can ensure the color is not null when debug.
+            color: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.color
+                ?.withOpacity(0.55),
+          ),
+          onTap: onDialogCancel,
+          hoverColor: Colors.red,
+          borderRadius: BorderRadius.circular(5),
+        ).marginOnly(top: 10, right: 15),
+      ],
+    );
+    final titlePadding = EdgeInsets.fromLTRB(MyTheme.dialogPadding, 0, 0, 0);
+
+    return CustomAlertDialog(
+      title: title,
+      titlePadding: titlePadding,
+      contentBoxConstraints: BoxConstraints(minWidth: 400),
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const SizedBox(
+            height: 8.0,
+          ),
+          SignUpWidgetUserPass(
+            name: name,
+            pass: password,
+            confirmPassword: confirmPassword,
+            email: email,
+            phoneNumber: phoneNumber,
+            phoneNumberMsg: phoneNumberMsg,
+            phoneNumberCodeMsg: phoneNumberCodeMsg,
+            phoneNumberCode: phoneNumberCode,
+            usernameMsg: usernameMsg,
+            emailMsg: emailMsg,
+            passMsg: passwordMsg,
+            isInProgress: isInProgress,
+            curOP: curOP,
+            onSignUp: onSignUp,
+            userFocusNode: userFocusNode,
+          ),
+          // thirdAuthWidget(),
+        ],
+      ),
+      onCancel: onDialogCancel,
+    );
+  });
+
+  if (res != null) {
+    await UserModel.updateOtherModels();
+  }
+
+  return res;
+}
+
 Future<bool?> verificationCodeDialog(UserPayload? user) async {
   var autoLogin = true;
   var isInProgress = false;
@@ -747,6 +996,109 @@ Future<bool?> verificationCodeDialog(UserPayload? user) async {
   });
 
   return res;
+}
+
+class SignUpWidgetUserPass extends StatelessWidget {
+  final TextEditingController name;
+  final TextEditingController pass;
+  final TextEditingController confirmPassword;
+  final TextEditingController email;
+  final TextEditingController phoneNumberCode;
+  final TextEditingController phoneNumber;
+  final String? usernameMsg;
+  final String? passMsg;
+  final String? emailMsg;
+  final String? phoneNumberMsg;
+  final String? phoneNumberCodeMsg;
+  final bool isInProgress;
+  final RxString curOP;
+  final Function() onSignUp;
+  final FocusNode? userFocusNode;
+  const SignUpWidgetUserPass({
+    Key? key,
+    this.userFocusNode,
+    required this.name,
+    required this.confirmPassword,
+    required this.email,
+    required this.phoneNumberCode,
+    required this.phoneNumber,
+    required this.pass,
+    required this.usernameMsg,
+    required this.passMsg,
+    required this.isInProgress,
+    required this.curOP,
+    required this.onSignUp,
+    this.emailMsg,
+    this.phoneNumberMsg,
+    this.phoneNumberCodeMsg,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+        padding: EdgeInsets.all(0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(height: 8.0),
+            DialogTextField(
+                title: translate(DialogTextField.kUsernameTitle),
+                controller: name,
+                // focusNode: userFocusNode,
+                prefixIcon: DialogTextField.kUsernameIcon,
+                errorText: usernameMsg),
+
+            DialogTextField(
+                title: translate(DialogTextField.kEmailTitle),
+                controller: email,
+                // focusNode: userFocusNode,
+                prefixIcon: DialogTextField.kEmailIcon,
+                errorText: emailMsg),
+
+            PhoneNumberWidget(
+              phoneNumberController: phoneNumber,
+              phoneNumberMsg: phoneNumberMsg,
+              codeController: phoneNumberCode,
+              codeMsg: phoneNumberCodeMsg,
+            ),
+
+            PasswordWidget(
+              controller: pass,
+              autoFocus: false,
+              errorText: passMsg,
+            ),
+            PasswordWidget(
+              controller: confirmPassword,
+              autoFocus: false,
+              hintText: DialogTextField.kPasswordConfirm,
+              errorText: passMsg,
+            ),
+            // NOT use Offstage to wrap LinearProgressIndicator
+            if (isInProgress) const LinearProgressIndicator(),
+            const SizedBox(height: 12.0),
+            FittedBox(
+                child:
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Container(
+                height: 38,
+                width: 200,
+                child: Obx(() => ElevatedButton(
+                      child: Text(
+                        translate('Register'),
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      onPressed:
+                          curOP.value.isEmpty || curOP.value == 'rustdesk'
+                              ? () {
+                                  onSignUp();
+                                }
+                              : null,
+                    )),
+              ),
+            ])),
+          ],
+        ));
+  }
 }
 
 void logOutConfirmDialog() {

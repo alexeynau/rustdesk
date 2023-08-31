@@ -166,6 +166,57 @@ class UserModel {
     return getLoginResponseFromAuthBody(jsonDecode(resBody));
   }
 
+  Future<SignUpResponse> signUp(SignUpRequest signUpRequest) async {
+    var headersList = {
+      'Accept': '*/*',
+      'User-Agent': 'Thunder Client (https://www.thunderclient.com)',
+      'Content-Type': 'application/x-www-form-urlencoded'
+    };
+
+    var url = Uri.parse('https://manuspect.ru/auth/register');
+
+    var body = {
+      'email': signUpRequest.email!,
+      'password': signUpRequest.password!,
+      'phone_number': signUpRequest.phone_num!,
+      'phone_number_code': signUpRequest.phone_num_code!,
+      'name': signUpRequest.name!
+    };
+
+    var req = http.Request('POST', url);
+    req.headers.addAll(headersList);
+    req.bodyFields = body;
+
+    var res = await req.send();
+
+    final resBody = await res.stream.bytesToString();
+    BotToast.showText(
+        contentColor: Colors.green, text: 'HTTP ${res.statusCode}');
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      print(resBody);
+    } else {
+      print(res.reasonPhrase);
+    }
+
+    return getSignUpResponseFromAuthBody(jsonDecode(resBody));
+  }
+
+  SignUpResponse getSignUpResponseFromAuthBody(Map<String, dynamic> body) {
+    final SignUpResponse signUpResponse;
+    try {
+      signUpResponse = SignUpResponse.fromJson(body);
+    } catch (e) {
+      debugPrint("login: jsonDecode SignUpResponse failed: ${e.toString()}");
+      rethrow;
+    }
+
+    if (signUpResponse.access_token != null) {
+      _parseAndUpdateUser(signUpResponse.user!);
+    }
+
+    return signUpResponse;
+  }
+
   /// throw [RequestException]
   Future<LoginResponse> login(LoginRequest loginRequest) async {
     final url = await bind.mainGetApiServer();
