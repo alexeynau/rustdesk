@@ -16,7 +16,9 @@ bool refreshingUser = false;
 class UserModel {
   final RxString userName = ''.obs;
   final RxBool isAdmin = false.obs;
-  bool get isLogin => userName.isNotEmpty;
+  final RxString email = ''.obs;
+  final RxString phoneNumber = ''.obs;
+  bool get isLogin => email.isNotEmpty || phoneNumber.isNotEmpty;
   WeakReference<FFI> parent;
 
   UserModel(this.parent);
@@ -95,6 +97,8 @@ class UserModel {
   _parseAndUpdateUser(UserPayload user) {
     userName.value = user.name;
     isAdmin.value = user.isAdmin;
+    email.value = user.email;
+    phoneNumber.value = user.phoneNumber;
     bind.mainSetLocalOption(key: 'user_info', value: jsonEncode(user));
   }
 
@@ -123,6 +127,43 @@ class UserModel {
       await reset(clearAbCache: true);
       gFFI.dialogManager.dismissByTag(tag);
     }
+  }
+
+  Future<LoginResponse> myLogin(MyLoginRequest loginRequest) async {
+    // TODO: bind with rust like this
+    // final url = await bind.mainGetApiServer();
+    var url = Uri.parse('https://manuspect.ru/auth/login');
+    var headersList = {
+      'Accept': '*/*',
+      'User-Agent': 'Thunder Client (https://www.thunderclient.com)',
+      'Content-Type': 'application/x-www-form-urlencoded'
+    };
+
+    var body = loginRequest
+        .toJson()
+        .map((key, value) => MapEntry<String, String>(key, value.toString()));
+
+    var req = http.Request('POST', url);
+    req.headers.addAll(headersList);
+    req.bodyFields = body;
+
+    var res = await req.send();
+    final resBody = await res.stream.bytesToString();
+
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      BotToast.showText(
+          contentColor: Colors.green, text: 'HTTP ${res.statusCode}');
+      print(resBody);
+    } else {
+      BotToast.showText(
+          contentColor: Colors.red, text: 'HTTP ${res.statusCode}');
+      print(res.headers);
+      print(res.request);
+      print(res.statusCode);
+      print(res.reasonPhrase);
+      throw RequestException(0, "${res.statusCode}: ${res.reasonPhrase!}");
+    }
+    return getLoginResponseFromAuthBody(jsonDecode(resBody));
   }
 
   /// throw [RequestException]

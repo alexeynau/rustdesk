@@ -22,6 +22,7 @@ enum UserStatus { kDisabled, kNormal, kUnverified }
 class UserPayload {
   String name = '';
   String email = '';
+  String phoneNumber = '';
   String note = '';
   UserStatus status;
   bool isAdmin = false;
@@ -79,15 +80,22 @@ class LoginRequest {
   bool? autoLogin;
   String? type;
   String? verificationCode;
+  String? email;
+  String? phoneNumber;
+  int? phoneNumberCode;
 
-  LoginRequest(
-      {this.username,
-      this.password,
-      this.id,
-      this.uuid,
-      this.autoLogin,
-      this.type,
-      this.verificationCode});
+  LoginRequest({
+    this.username,
+    this.password,
+    this.id,
+    this.uuid,
+    this.autoLogin,
+    this.type,
+    this.verificationCode,
+    this.email,
+    this.phoneNumber,
+    this.phoneNumberCode,
+  });
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
@@ -100,6 +108,9 @@ class LoginRequest {
     if (verificationCode != null) {
       data['verificationCode'] = verificationCode;
     }
+    if (email != null) data['email'] = email;
+    if (phoneNumber != null) data['phoneNumber'] = phoneNumber;
+    if (phoneNumberCode != null) data['phoneNumberCode'] = phoneNumberCode;
 
     Map<String, dynamic> deviceInfo = {};
     try {
@@ -108,6 +119,29 @@ class LoginRequest {
       debugPrint('Failed to decode get device info: $e');
     }
     data['deviceInfo'] = deviceInfo;
+    return data;
+  }
+}
+
+class MyLoginRequest {
+  String? password;
+  String? email;
+  String? phoneNumber;
+  String? phoneNumberCode;
+
+  MyLoginRequest({
+    this.email,
+    this.password,
+    this.phoneNumber,
+    this.phoneNumberCode,
+  });
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = <String, dynamic>{};
+    if (password != null) data['password'] = password;
+    if (email != null) data['email'] = email;
+    if (phoneNumber != null) data['phone_number'] = phoneNumber;
+    if (phoneNumberCode != null) data['phone_number_code'] = phoneNumberCode;
     return data;
   }
 }
@@ -134,5 +168,18 @@ class RequestException implements Exception {
   @override
   String toString() {
     return "RequestException, statusCode: $statusCode, error: $cause";
+  }
+}
+
+class MyLoginResponse {
+  String? access_token;
+  String? type;
+
+  MyLoginResponse({this.access_token, this.type});
+
+  MyLoginResponse.fromJson(Map<String, dynamic> json) {
+    access_token = json['access_token'];
+    // TODO: hardcoded!!!
+    type = HttpType.kAuthResTypeToken;
   }
 }

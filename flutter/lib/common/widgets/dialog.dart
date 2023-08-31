@@ -315,6 +315,10 @@ class DialogTextField extends StatelessWidget {
 
   static const kUsernameTitle = 'Username';
   static const kUsernameIcon = Icon(Icons.account_circle_outlined);
+  static const kEmailTitle = 'Email';
+  static const kEmailIcon = Icon(Icons.email_outlined);
+  static const kPhoneNumberTitle = 'Phone Number';
+  static const kPhoneNumberIcon = Icon(Icons.phone_outlined);
   static const kPasswordTitle = 'Password';
   static const kPasswordIcon = Icon(Icons.lock_outline);
 

@@ -320,10 +320,14 @@ class LoginWidgetOP extends StatelessWidget {
 }
 
 class LoginWidgetUserPass extends StatelessWidget {
-  final TextEditingController username;
+  final TextEditingController email;
   final TextEditingController pass;
-  final String? usernameMsg;
+  final TextEditingController phoneNumber;
+  final TextEditingController phoneNumberCode;
+  final String? emailMsg;
   final String? passMsg;
+  final String? phoneNumberMsg;
+  final String? phoneNumberCodeMsg;
   final bool isInProgress;
   final RxString curOP;
   final Function() onLogin;
@@ -331,13 +335,17 @@ class LoginWidgetUserPass extends StatelessWidget {
   const LoginWidgetUserPass({
     Key? key,
     this.userFocusNode,
-    required this.username,
+    required this.email,
     required this.pass,
-    required this.usernameMsg,
+    required this.emailMsg,
     required this.passMsg,
     required this.isInProgress,
     required this.curOP,
     required this.onLogin,
+    required this.phoneNumber,
+    required this.phoneNumberCode,
+    required this.phoneNumberMsg,
+    required this.phoneNumberCodeMsg,
   }) : super(key: key);
 
   @override
@@ -349,16 +357,40 @@ class LoginWidgetUserPass extends StatelessWidget {
           children: [
             const SizedBox(height: 8.0),
             DialogTextField(
-                title: translate(DialogTextField.kUsernameTitle),
-                controller: username,
+                title: translate(DialogTextField.kEmailTitle),
+                controller: email,
                 focusNode: userFocusNode,
-                prefixIcon: DialogTextField.kUsernameIcon,
-                errorText: usernameMsg),
+                prefixIcon: DialogTextField.kEmailIcon,
+                errorText: emailMsg),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: DialogTextField(
+                      title: 'Code',
+                      controller: phoneNumberCode,
+                      prefixIcon: Icon(Icons.add),
+                      errorText: phoneNumberCodeMsg),
+                ),
+                SizedBox(
+                  width: 8,
+                ),
+                Expanded(
+                  flex: 5,
+                  child: DialogTextField(
+                      title: DialogTextField.kPhoneNumberTitle,
+                      controller: phoneNumber,
+                      prefixIcon: DialogTextField.kPhoneNumberIcon,
+                      errorText: phoneNumberMsg),
+                ),
+              ],
+            ),
             PasswordWidget(
               controller: pass,
               autoFocus: false,
               errorText: passMsg,
             ),
+
             // NOT use Offstage to wrap LinearProgressIndicator
             if (isInProgress) const LinearProgressIndicator(),
             const SizedBox(height: 12.0),
@@ -392,32 +424,47 @@ const kAuthReqTypeOidc = 'oidc/';
 /// common login dialog for desktop
 /// call this directly
 Future<bool?> loginDialog() async {
-  var username =
-      TextEditingController(text: UserModel.getLocalUserInfo()?['name'] ?? '');
+  var email = TextEditingController();
   var password = TextEditingController();
+  var phoneNumber = TextEditingController();
+  var phoneNumberCode = TextEditingController();
   final userFocusNode = FocusNode()..requestFocus();
   Timer(Duration(milliseconds: 100), () => userFocusNode..requestFocus());
 
-  String? usernameMsg;
+  String? emailMsg;
   String? passwordMsg;
+  String? phoneNumberMsg;
+  String? phoneNumberCodeMsg;
   var isInProgress = false;
   final RxString curOP = ''.obs;
 
-  final loginOptions = [].obs;
-  Future.delayed(Duration.zero, () async {
-    loginOptions.value = await UserModel.queryOidcLoginOptions();
-  });
+  // final loginOptions = [].obs;
+  // Future.delayed(Duration.zero, () async {
+  //   loginOptions.value = await UserModel.queryOidcLoginOptions();
+  // });
 
   final res = await gFFI.dialogManager.show<bool>((setState, close, context) {
-    username.addListener(() {
-      if (usernameMsg != null) {
-        setState(() => usernameMsg = null);
+    email.addListener(() {
+      if (emailMsg != null) {
+        setState(() => emailMsg = null);
       }
     });
 
     password.addListener(() {
       if (passwordMsg != null) {
         setState(() => passwordMsg = null);
+      }
+    });
+
+    phoneNumber.addListener(() {
+      if (phoneNumberMsg != null) {
+        setState(() => phoneNumberMsg = null);
+      }
+    });
+
+    phoneNumberCode.addListener(() {
+      if (phoneNumberCodeMsg != null) {
+        setState(() => phoneNumberCodeMsg = null);
       }
     });
 
@@ -428,49 +475,55 @@ Future<bool?> loginDialog() async {
 
     onLogin() async {
       // validate
-      if (username.text.isEmpty) {
-        setState(() => usernameMsg = translate('Username missed'));
+      if (email.text.isEmpty) {
+        setState(() => emailMsg = translate('Username missed'));
         return;
       }
       if (password.text.isEmpty) {
         setState(() => passwordMsg = translate('Password missed'));
         return;
       }
+      if (phoneNumber.text.isEmpty) {
+        setState(() => phoneNumberMsg = 'Phone number missed');
+        return;
+      }
+      if (phoneNumberCode.text.isEmpty) {
+        setState(() => phoneNumberCodeMsg = 'Phone number code missed');
+        return;
+      }
       curOP.value = 'rustdesk';
       setState(() => isInProgress = true);
       try {
-        final resp = await gFFI.userModel.login(LoginRequest(
-            username: username.text,
-            password: password.text,
-            id: await bind.mainGetMyId(),
-            uuid: await bind.mainGetUuid(),
-            autoLogin: true,
-            type: HttpType.kAuthReqTypeAccount));
-
+        final resp = await gFFI.userModel.myLogin(MyLoginRequest(
+          email: email.text,
+          password: password.text,
+          phoneNumber: phoneNumber.text,
+          phoneNumberCode: phoneNumberCode.text,
+        ));
         switch (resp.type) {
           case HttpType.kAuthResTypeToken:
             if (resp.access_token != null) {
               await bind.mainSetLocalOption(
                   key: 'access_token', value: resp.access_token!);
-              await bind.mainSetLocalOption(
-                  key: 'user_info', value: jsonEncode(resp.user ?? {}));
+              // await bind.mainSetLocalOption(
+              //     key: 'user_info', value: jsonEncode(resp.user ?? {}));
               close(true);
               return;
             }
             break;
-          case HttpType.kAuthResTypeEmailCheck:
-            if (isMobile) {
-              close(true);
-              verificationCodeDialog(resp.user);
-            } else {
-              setState(() => isInProgress = false);
-              final res = await verificationCodeDialog(resp.user);
-              if (res == true) {
-                close(true);
-                return;
-              }
-            }
-            break;
+          // case HttpType.kAuthResTypeEmailCheck:
+          //   if (isMobile) {
+          //     close(true);
+          //     verificationCodeDialog(resp.user);
+          //   } else {
+          //     setState(() => isInProgress = false);
+          //     final res = await verificationCodeDialog(resp.user);
+          //     if (res == true) {
+          //       close(true);
+          //       return;
+          //     }
+          //   }
+          //   break;
           default:
             passwordMsg = "Failed, bad response from server";
             break;
@@ -484,42 +537,42 @@ Future<bool?> loginDialog() async {
       setState(() => isInProgress = false);
     }
 
-    thirdAuthWidget() => Obx(() {
-          return Offstage(
-            offstage: loginOptions.isEmpty,
-            child: Column(
-              children: [
-                const SizedBox(
-                  height: 8.0,
-                ),
-                Center(
-                    child: Text(
-                  translate('or'),
-                  style: TextStyle(fontSize: 16),
-                )),
-                const SizedBox(
-                  height: 8.0,
-                ),
-                LoginWidgetOP(
-                  ops: loginOptions
-                      .map((e) => ConfigOP(op: e['name'], icon: e['icon']))
-                      .toList(),
-                  curOP: curOP,
-                  cbLogin: (Map<String, dynamic> authBody) {
-                    try {
-                      // access_token is already stored in the rust side.
-                      gFFI.userModel.getLoginResponseFromAuthBody(authBody);
-                    } catch (e) {
-                      debugPrint(
-                          'Failed to parse oidc login body: "$authBody"');
-                    }
-                    close(true);
-                  },
-                ),
-              ],
-            ),
-          );
-        });
+    // thirdAuthWidget() => Obx(() {
+    //       return Offstage(
+    //         offstage: loginOptions.isEmpty,
+    //         child: Column(
+    //           children: [
+    //             const SizedBox(
+    //               height: 8.0,
+    //             ),
+    //             Center(
+    //                 child: Text(
+    //               translate('or'),
+    //               style: TextStyle(fontSize: 16),
+    //             )),
+    //             const SizedBox(
+    //               height: 8.0,
+    //             ),
+    //             LoginWidgetOP(
+    //               ops: loginOptions
+    //                   .map((e) => ConfigOP(op: e['name'], icon: e['icon']))
+    //                   .toList(),
+    //               curOP: curOP,
+    //               cbLogin: (Map<String, dynamic> authBody) {
+    //                 try {
+    //                   // access_token is already stored in the rust side.
+    //                   gFFI.userModel.getLoginResponseFromAuthBody(authBody);
+    //                 } catch (e) {
+    //                   debugPrint(
+    //                       'Failed to parse oidc login body: "$authBody"');
+    //                 }
+    //                 close(true);
+    //               },
+    //             ),
+    //           ],
+    //         ),
+    //       );
+    //     });
 
     final title = Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -559,16 +612,20 @@ Future<bool?> loginDialog() async {
             height: 8.0,
           ),
           LoginWidgetUserPass(
-            username: username,
+            email: email,
             pass: password,
-            usernameMsg: usernameMsg,
+            emailMsg: emailMsg,
             passMsg: passwordMsg,
+            phoneNumber: phoneNumber,
+            phoneNumberCode: phoneNumberCode,
+            phoneNumberMsg: phoneNumberMsg,
+            phoneNumberCodeMsg: phoneNumberCodeMsg,
             isInProgress: isInProgress,
             curOP: curOP,
             onLogin: onLogin,
             userFocusNode: userFocusNode,
           ),
-          thirdAuthWidget(),
+          // thirdAuthWidget(),
         ],
       ),
       onCancel: onDialogCancel,
@@ -613,7 +670,7 @@ Future<bool?> verificationCodeDialog(UserPayload? user) async {
       try {
         final resp = await gFFI.userModel.login(LoginRequest(
             verificationCode: code.text,
-            username: user?.name,
+            email: user?.name,
             id: await bind.mainGetMyId(),
             uuid: await bind.mainGetUuid(),
             autoLogin: autoLogin,
