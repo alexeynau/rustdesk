@@ -391,11 +391,10 @@ class PhoneNumberWidget extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          flex: 2,
+          flex: 1,
           child: DialogTextField(
             title: 'Code',
             controller: codeController,
-            prefixIcon: Icon(Icons.add),
             errorText: codeMsg,
             onlyNumbers: true,
           ),

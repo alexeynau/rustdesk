@@ -1387,15 +1387,17 @@ class _AccountState extends State<_Account> {
             _Card(
               title: 'Account',
               children: [
-                Row(
-                  children: [
-                    accountActionSignUp(),
-                    SizedBox(
-                      width: 8,
-                    ),
-                    accountActionLogin(),
-                  ],
-                ),
+                accountActionLogin(),
+                // Row(
+                //   children: [
+                //     accountActionSignUp(),
+                //     SizedBox(
+                //       width: 8,
+                //     ),
+                //     accountActionLogin(),
+                //   ],
+                // ),
+
                 useInfo(),
               ],
             ),
@@ -1408,7 +1410,7 @@ class _AccountState extends State<_Account> {
         gFFI.userModel.userName.value.isEmpty ? 'Login' : 'Logout',
         () => {
               gFFI.userModel.userName.value.isEmpty
-                  ? loginDialog()
+                  ? unifiedDialog()
                   : logOutConfirmDialog()
             }));
   }
@@ -1416,7 +1418,7 @@ class _AccountState extends State<_Account> {
   Widget accountActionSignUp() {
     return _Button(
       translate('Sign up'),
-      () => {signUpDialog()},
+      () => {unifiedDialog()},
     );
   }
 

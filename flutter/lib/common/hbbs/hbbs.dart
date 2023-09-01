@@ -21,15 +21,27 @@ enum UserStatus { kDisabled, kNormal, kUnverified }
 // Is all the fields of the user needed?
 class UserPayload {
   String name = '';
-  String email = '';
-  String phoneNumber = '';
+  String? email = '';
+  String? phoneNumber = '';
+  String accessToken = '';
   String note = '';
   UserStatus status;
   bool isAdmin = false;
 
+  UserPayload({
+    required this.name,
+    required this.accessToken,
+    this.email,
+    this.phoneNumber,
+    this.status = UserStatus.kNormal,
+    this.isAdmin = false,
+    this.note = '',
+  });
+
   UserPayload.fromJson(Map<String, dynamic> json)
       : name = json['name'] ?? '',
         email = json['email'] ?? '',
+        // accessToken = json['access_token'] ?? '',
         note = json['note'] ?? '',
         status = json['status'] == 0
             ? UserStatus.kDisabled
@@ -41,6 +53,9 @@ class UserPayload {
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> map = {
       'name': name,
+      'access_token': accessToken,
+      'email': email,
+      'phoneNumber': phoneNumber,
       'status': status == UserStatus.kDisabled
           ? 0
           : status == UserStatus.kUnverified
@@ -181,18 +196,35 @@ class SignUpRequest {
   }
 }
 
-class SignUpResponse {
-  String? access_token;
-  String? type;
-  String? refresh_token;
-  UserPayload? user;
+LoginOrSignUpResponse loginOrSignUpResponseFromJson(String str) =>
+    LoginOrSignUpResponse.fromJson(json.decode(str));
 
-  SignUpResponse({this.access_token, this.type, this.user});
+String loginOrSignUpResponseToJson(LoginOrSignUpResponse data) =>
+    json.encode(data.toJson());
 
-  SignUpResponse.fromJson(Map<String, dynamic> json) {
-    access_token = json['access_token'];
-    type = HttpType.kAuthResTypeToken;
-  }
+class LoginOrSignUpResponse {
+  String? accessToken;
+  String? refreshToken;
+  String? message;
+
+  LoginOrSignUpResponse({
+    this.accessToken,
+    this.refreshToken,
+    this.message,
+  });
+
+  factory LoginOrSignUpResponse.fromJson(Map<String, dynamic> json) =>
+      LoginOrSignUpResponse(
+        accessToken: json["access_token"],
+        refreshToken: json["refresh_token"],
+        message: json["message"],
+      );
+
+  Map<String, dynamic> toJson() => {
+        "access_token": accessToken,
+        "refresh_token": refreshToken,
+        "message": message,
+      };
 }
 
 class LoginResponse {
@@ -217,18 +249,5 @@ class RequestException implements Exception {
   @override
   String toString() {
     return "RequestException, statusCode: $statusCode, error: $cause";
-  }
-}
-
-class MyLoginResponse {
-  String? access_token;
-  String? type;
-
-  MyLoginResponse({this.access_token, this.type});
-
-  MyLoginResponse.fromJson(Map<String, dynamic> json) {
-    access_token = json['access_token'];
-    // TODO: hardcoded!!!
-    type = HttpType.kAuthResTypeToken;
   }
 }

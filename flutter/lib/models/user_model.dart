@@ -82,7 +82,8 @@ class UserModel {
   _updateLocalUserInfo() {
     final userInfo = getLocalUserInfo();
     if (userInfo != null) {
-      userName.value = userInfo['name'];
+      // TODO FIX: Unhandled Exception: type 'Null' is not a subtype of type 'String'
+      userName.value = userInfo['name'] ?? '';
     }
   }
 
@@ -97,9 +98,9 @@ class UserModel {
   _parseAndUpdateUser(UserPayload user) {
     userName.value = user.name;
     isAdmin.value = user.isAdmin;
-    email.value = user.email;
-    phoneNumber.value = user.phoneNumber;
-    bind.mainSetLocalOption(key: 'user_info', value: jsonEncode(user));
+    email.value = user.email ?? '';
+    phoneNumber.value = user.phoneNumber ?? '';
+    bind.mainSetLocalOption(key: 'user_info', value: jsonEncode(user.toJson()));
   }
 
   // update ab and group status
@@ -129,7 +130,7 @@ class UserModel {
     }
   }
 
-  Future<LoginResponse> myLogin(MyLoginRequest loginRequest) async {
+  Future<LoginOrSignUpResponse> myLogin(MyLoginRequest loginRequest) async {
     // TODO: bind with rust like this
     // final url = await bind.mainGetApiServer();
     var url = Uri.parse('https://manuspect.ru/auth/login');
@@ -161,12 +162,30 @@ class UserModel {
       print(res.request);
       print(res.statusCode);
       print(res.reasonPhrase);
-      throw RequestException(0, "${res.statusCode}: ${res.reasonPhrase!}");
+      // throw RequestException(0, "${res.statusCode}: ${res.reasonPhrase!}");
     }
-    return getLoginResponseFromAuthBody(jsonDecode(resBody));
+
+    final LoginOrSignUpResponse response;
+    try {
+      response = LoginOrSignUpResponse.fromJson(jsonDecode(resBody));
+    } catch (e) {
+      debugPrint("login: jsonDecode LoginResponse failed: ${e.toString()}");
+      rethrow;
+    }
+
+    _parseAndUpdateUser(
+      UserPayload(
+        accessToken: response.accessToken!,
+        name: loginRequest.email ?? 'Undefined',
+        email: loginRequest.email,
+        phoneNumber:
+            ('${loginRequest.phoneNumberCode}${loginRequest.phoneNumber}'),
+      ),
+    );
+    return response;
   }
 
-  Future<SignUpResponse> signUp(SignUpRequest signUpRequest) async {
+  Future<LoginOrSignUpResponse> signUp(SignUpRequest signUpRequest) async {
     var headersList = {
       'Accept': '*/*',
       'User-Agent': 'Thunder Client (https://www.thunderclient.com)',
@@ -175,13 +194,9 @@ class UserModel {
 
     var url = Uri.parse('https://manuspect.ru/auth/register');
 
-    var body = {
-      'email': signUpRequest.email!,
-      'password': signUpRequest.password!,
-      'phone_number': signUpRequest.phone_num!,
-      'phone_number_code': signUpRequest.phone_num_code!,
-      'name': signUpRequest.name!
-    };
+    var body = signUpRequest
+        .toJson()
+        .map((key, value) => MapEntry<String, String>(key, value.toString()));
 
     var req = http.Request('POST', url);
     req.headers.addAll(headersList);
@@ -190,35 +205,38 @@ class UserModel {
     var res = await req.send();
 
     final resBody = await res.stream.bytesToString();
-    BotToast.showText(
-        contentColor: Colors.green, text: 'HTTP ${res.statusCode}');
     if (res.statusCode >= 200 && res.statusCode < 300) {
+      BotToast.showText(
+          contentColor: Colors.green, text: 'HTTP ${res.statusCode}');
       print(resBody);
     } else {
+      BotToast.showText(
+          contentColor: Colors.red, text: 'HTTP ${res.statusCode}');
       print(res.reasonPhrase);
     }
 
-    return getSignUpResponseFromAuthBody(jsonDecode(resBody));
-  }
-
-  SignUpResponse getSignUpResponseFromAuthBody(Map<String, dynamic> body) {
-    final SignUpResponse signUpResponse;
+    final LoginOrSignUpResponse response;
     try {
-      signUpResponse = SignUpResponse.fromJson(body);
+      response = LoginOrSignUpResponse.fromJson(jsonDecode(resBody));
     } catch (e) {
-      debugPrint("login: jsonDecode SignUpResponse failed: ${e.toString()}");
+      debugPrint("login: jsonDecode LoginResponse failed: ${e.toString()}");
       rethrow;
     }
 
-    if (signUpResponse.access_token != null) {
-      _parseAndUpdateUser(signUpResponse.user!);
-    }
-
-    return signUpResponse;
+    _parseAndUpdateUser(
+      UserPayload(
+        accessToken: response.accessToken!,
+        name: signUpRequest.name ?? '',
+        email: signUpRequest.email,
+        phoneNumber:
+            ('${signUpRequest.phone_num_code}${signUpRequest.phone_num}'),
+      ),
+    );
+    return response;
   }
 
   /// throw [RequestException]
-  Future<LoginResponse> login(LoginRequest loginRequest) async {
+  Future<LoginOrSignUpResponse> login(LoginRequest loginRequest) async {
     final url = await bind.mainGetApiServer();
     final resp = await http.post(Uri.parse('$url/api/login'),
         headers: {'Content-Type': 'application/json'},
@@ -242,23 +260,26 @@ class UserModel {
       throw RequestException(0, body['error']);
     }
 
-    return getLoginResponseFromAuthBody(body);
+    return getResponseFromAuthBody(body);
   }
 
-  LoginResponse getLoginResponseFromAuthBody(Map<String, dynamic> body) {
-    final LoginResponse loginResponse;
+  LoginOrSignUpResponse getResponseFromAuthBody(Map<String, dynamic> body) {
+    final LoginOrSignUpResponse response;
     try {
-      loginResponse = LoginResponse.fromJson(body);
+      response = LoginOrSignUpResponse.fromJson(body);
     } catch (e) {
       debugPrint("login: jsonDecode LoginResponse failed: ${e.toString()}");
       rethrow;
     }
 
-    if (loginResponse.user != null) {
-      _parseAndUpdateUser(loginResponse.user!);
-    }
+    _parseAndUpdateUser(
+      UserPayload(
+        name: response.accessToken!,
+        accessToken: response.accessToken!,
+      ),
+    );
 
-    return loginResponse;
+    return response;
   }
 
   static Future<List<dynamic>> queryOidcLoginOptions() async {
