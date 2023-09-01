@@ -359,7 +359,7 @@ class DialogTextField extends StatelessWidget {
             autofocus: true,
             obscureText: obscureText,
             keyboardType:
-                onlyNumbers ? TextInputType.number : TextInputType.none,
+                onlyNumbers ? TextInputType.number : TextInputType.text,
             inputFormatters: onlyNumbers
                 ? <TextInputFormatter>[
                     FilteringTextInputFormatter.digitsOnly

@@ -130,6 +130,7 @@ class UserModel {
     }
   }
 
+// TODO: unify login and sign up
   Future<LoginOrSignUpResponse> myLogin(MyLoginRequest loginRequest) async {
     // TODO: bind with rust like this
     // final url = await bind.mainGetApiServer();
@@ -151,19 +152,19 @@ class UserModel {
     var res = await req.send();
     final resBody = await res.stream.bytesToString();
 
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      BotToast.showText(
-          contentColor: Colors.green, text: 'HTTP ${res.statusCode}');
-      print(resBody);
-    } else {
-      BotToast.showText(
-          contentColor: Colors.red, text: 'HTTP ${res.statusCode}');
-      print(res.headers);
-      print(res.request);
-      print(res.statusCode);
-      print(res.reasonPhrase);
-      // throw RequestException(0, "${res.statusCode}: ${res.reasonPhrase!}");
-    }
+    // if (res.statusCode >= 200 && res.statusCode < 300) {
+    //   BotToast.showText(
+    //       contentColor: Colors.green, text: 'HTTP ${res.statusCode}');
+    //   print(resBody);
+    // } else {
+    //   BotToast.showText(
+    //       contentColor: Colors.red, text: 'HTTP ${res.statusCode}');
+    //   print(res.headers);
+    //   print(res.request);
+    //   print(res.statusCode);
+    //   print(res.reasonPhrase);
+    //   // throw RequestException(0, "${res.statusCode}: ${res.reasonPhrase!}");
+    // }
 
     final LoginOrSignUpResponse response;
     try {
@@ -172,16 +173,17 @@ class UserModel {
       debugPrint("login: jsonDecode LoginResponse failed: ${e.toString()}");
       rethrow;
     }
-
-    _parseAndUpdateUser(
-      UserPayload(
-        accessToken: response.accessToken!,
-        name: loginRequest.email ?? 'Undefined',
-        email: loginRequest.email,
-        phoneNumber:
-            ('${loginRequest.phoneNumberCode}${loginRequest.phoneNumber}'),
-      ),
-    );
+    if (response.accessToken != null) {
+      _parseAndUpdateUser(
+        UserPayload(
+          accessToken: response.accessToken!,
+          name: loginRequest.email ?? 'Undefined',
+          email: loginRequest.email,
+          phoneNumber:
+              ('${loginRequest.phoneNumberCode}${loginRequest.phoneNumber}'),
+        ),
+      );
+    }
     return response;
   }
 
@@ -205,15 +207,15 @@ class UserModel {
     var res = await req.send();
 
     final resBody = await res.stream.bytesToString();
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      BotToast.showText(
-          contentColor: Colors.green, text: 'HTTP ${res.statusCode}');
-      print(resBody);
-    } else {
-      BotToast.showText(
-          contentColor: Colors.red, text: 'HTTP ${res.statusCode}');
-      print(res.reasonPhrase);
-    }
+    // if (res.statusCode >= 200 && res.statusCode < 300) {
+    //   BotToast.showText(
+    //       contentColor: Colors.green, text: 'HTTP ${res.statusCode}');
+    //   print(resBody);
+    // } else {
+    //   BotToast.showText(
+    //       contentColor: Colors.red, text: 'HTTP ${res.statusCode}');
+    //   print(res.reasonPhrase);
+    // }
 
     final LoginOrSignUpResponse response;
     try {
@@ -222,16 +224,17 @@ class UserModel {
       debugPrint("login: jsonDecode LoginResponse failed: ${e.toString()}");
       rethrow;
     }
-
-    _parseAndUpdateUser(
-      UserPayload(
-        accessToken: response.accessToken!,
-        name: signUpRequest.name ?? '',
-        email: signUpRequest.email,
-        phoneNumber:
-            ('${signUpRequest.phone_num_code}${signUpRequest.phone_num}'),
-      ),
-    );
+    if (response.accessToken != null) {
+      _parseAndUpdateUser(
+        UserPayload(
+          accessToken: response.accessToken!,
+          name: signUpRequest.name ?? '',
+          email: signUpRequest.email,
+          phoneNumber:
+              ('${signUpRequest.phone_num_code}${signUpRequest.phone_num}'),
+        ),
+      );
+    }
     return response;
   }
 

@@ -390,7 +390,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
               leading: Icon(Icons.person),
               onPressed: (context) {
                 if (gFFI.userModel.userName.value.isEmpty) {
-                  loginDialog();
+                  unifiedDialog();
                 } else {
                   logOutConfirmDialog();
                 }
@@ -398,32 +398,35 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             ),
           ],
         ),
-        SettingsSection(title: Text(translate("Settings")), tiles: [
-          SettingsTile.navigation(
-              title: Text(translate('ID/Relay Server')),
-              leading: Icon(Icons.cloud),
+        SettingsSection(
+          title: Text(translate("Settings")),
+          tiles: [
+            SettingsTile.navigation(
+                title: Text(translate('ID/Relay Server')),
+                leading: Icon(Icons.cloud),
+                onPressed: (context) {
+                  showServerSettings(gFFI.dialogManager);
+                }),
+            SettingsTile.navigation(
+                title: Text(translate('Language')),
+                leading: Icon(Icons.translate),
+                onPressed: (context) {
+                  showLanguageSettings(gFFI.dialogManager);
+                }),
+            SettingsTile.navigation(
+              title: Text(translate(
+                  Theme.of(context).brightness == Brightness.light
+                      ? 'Dark Theme'
+                      : 'Light Theme')),
+              leading: Icon(Theme.of(context).brightness == Brightness.light
+                  ? Icons.dark_mode
+                  : Icons.light_mode),
               onPressed: (context) {
-                showServerSettings(gFFI.dialogManager);
-              }),
-          SettingsTile.navigation(
-              title: Text(translate('Language')),
-              leading: Icon(Icons.translate),
-              onPressed: (context) {
-                showLanguageSettings(gFFI.dialogManager);
-              }),
-          SettingsTile.navigation(
-            title: Text(translate(
-                Theme.of(context).brightness == Brightness.light
-                    ? 'Dark Theme'
-                    : 'Light Theme')),
-            leading: Icon(Theme.of(context).brightness == Brightness.light
-                ? Icons.dark_mode
-                : Icons.light_mode),
-            onPressed: (context) {
-              showThemeSettings(gFFI.dialogManager);
-            },
-          )
-        ]),
+                showThemeSettings(gFFI.dialogManager);
+              },
+            )
+          ],
+        ),
         SettingsSection(
           title: Text(translate("Recording")),
           tiles: [
